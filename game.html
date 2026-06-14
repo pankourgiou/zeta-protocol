@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZR-9: THE CULLING WARD</title>
+<style>
+  :root{
+    --void:#05060a;
+    --panel:#0b0d14;
+    --line:#1c2230;
+    --phosphor:#9fffb0;
+    --phosphor-dim:#4d7a57;
+    --blood:#b3382c;
+    --bone:#cfc7b8;
+    --insect:#caa23a;
+    --reptile:#5f8f5a;
+    --grey:#8a93a3;
+    --nordic:#7fb6c9;
+    --font-display: 'Courier New', monospace;
+    --font-body: 'Georgia', 'Times New Roman', serif;
+  }
+
+  *{box-sizing:border-box;}
+  html{height:100%;}
+  body{
+    margin:0;
+    min-height:100%;
+    background:var(--void);
+    background-image:
+      radial-gradient(ellipse at 50% -10%, rgba(159,255,176,0.05), transparent 60%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
+    color:var(--bone);
+    font-family:var(--font-body);
+    display:flex;
+    justify-content:center;
+    padding:24px 16px;
+  }
+
+  .console{
+    width:100%;
+    max-width:760px;
+    border:1px solid var(--line);
+    background:var(--panel);
+    box-shadow:0 0 60px rgba(159,255,176,0.04), inset 0 0 120px rgba(0,0,0,0.6);
+    position:relative;
+    overflow:visible;
+  }
+
+  .console::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:linear-gradient(180deg, rgba(159,255,176,0.03), transparent 6%, transparent 94%, rgba(0,0,0,0.4));
+    mix-blend-mode:overlay;
+  }
+
+  header{
+    border-bottom:1px solid var(--line);
+    padding:18px 24px;
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    font-family:var(--font-display);
+    letter-spacing:0.18em;
+    font-size:11px;
+    color:var(--phosphor-dim);
+  }
+  header .title{ color:var(--phosphor); font-size:13px; }
+  header .id{ font-size:10px; }
+
+  .scanline-glow{
+    height:2px;
+    background:linear-gradient(90deg, transparent, var(--phosphor), transparent);
+    opacity:0.4;
+    animation:sweep 6s linear infinite;
+  }
+  @keyframes sweep{
+    0%{ transform:translateX(-100%); }
+    100%{ transform:translateX(100%); }
+  }
+
+  main{
+    padding:28px 24px 24px;
+    min-height:420px;
+  }
+
+  .stardate{
+    font-family:var(--font-display);
+    font-size:10px;
+    color:var(--phosphor-dim);
+    letter-spacing:0.15em;
+    margin-bottom:14px;
+    text-transform:uppercase;
+  }
+
+  #text-output{
+    font-size:16px;
+    line-height:1.85;
+    color:var(--bone);
+    white-space:pre-wrap;
+    min-height:120px;
+  }
+  #text-output .line{
+    display:block;
+    margin-bottom:0.9em;
+  }
+  #text-output .line.flavor{
+    color:var(--phosphor-dim);
+    font-family:var(--font-display);
+    font-size:13px;
+    letter-spacing:0.04em;
+  }
+  #text-output .line.speaker{
+    color:var(--nordic);
+    font-style:italic;
+  }
+  #text-output .line.warn{
+    color:var(--blood);
+    font-family:var(--font-display);
+    font-size:12px;
+    letter-spacing:0.12em;
+  }
+  #text-output .line.system{
+    color:var(--phosphor);
+    font-family:var(--font-display);
+    font-size:12px;
+    letter-spacing:0.1em;
+  }
+
+  .cursor{
+    display:inline-block;
+    width:8px;
+    height:14px;
+    background:var(--phosphor);
+    vertical-align:-2px;
+    animation:blink 1s steps(1) infinite;
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
+
+  #choices{
+    margin-top:22px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    opacity:0;
+    transition:opacity 0.6s ease;
+  }
+  #choices.visible{ opacity:1; }
+
+  .choice-btn{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--bone);
+    text-align:left;
+    padding:12px 16px;
+    font-family:var(--font-body);
+    font-size:14.5px;
+    cursor:pointer;
+    transition:border-color 0.2s, color 0.2s, background 0.2s, padding-left 0.2s;
+    position:relative;
+  }
+  .choice-btn::before{
+    content:"›";
+    color:var(--phosphor-dim);
+    margin-right:10px;
+    font-family:var(--font-display);
+  }
+  .choice-btn:hover, .choice-btn:focus{
+    border-color:var(--phosphor-dim);
+    color:var(--phosphor);
+    background:rgba(159,255,176,0.04);
+    padding-left:20px;
+    outline:none;
+  }
+  .choice-btn:hover::before, .choice-btn:focus::before{
+    color:var(--phosphor);
+  }
+
+  .choice-btn[data-species="insectoid"]:hover{ border-color:var(--insect); color:var(--insect); }
+  .choice-btn[data-species="reptilian"]:hover{ border-color:var(--reptile); color:var(--reptile); }
+  .choice-btn[data-species="grey"]:hover{ border-color:var(--grey); color:var(--grey); }
+  .choice-btn[data-species="nordic"]:hover{ border-color:var(--nordic); color:var(--nordic); }
+
+  .skip-zone{
+    position:absolute;
+    inset:0;
+    cursor:pointer;
+    z-index:1;
+  }
+
+  footer{
+    border-top:1px solid var(--line);
+    padding:10px 24px;
+    font-family:var(--font-display);
+    font-size:10px;
+    letter-spacing:0.15em;
+    color:var(--phosphor-dim);
+    display:flex;
+    justify-content:space-between;
+  }
+
+  #vitals{
+    font-family:var(--font-display);
+    font-size:10px;
+    color:var(--phosphor-dim);
+    letter-spacing:0.12em;
+  }
+  #vitals span{ color:var(--phosphor); }
+
+  .restart-row{
+    margin-top:24px;
+    text-align:center;
+  }
+  .restart-btn{
+    background:transparent;
+    border:1px solid var(--blood);
+    color:var(--blood);
+    font-family:var(--font-display);
+    letter-spacing:0.2em;
+    font-size:11px;
+    padding:10px 22px;
+    cursor:pointer;
+    transition:background 0.2s, color 0.2s;
+  }
+  .restart-btn:hover{
+    background:var(--blood);
+    color:var(--void);
+  }
+
+  @media (max-width:520px){
+    main{ padding:20px 16px; }
+    #text-output{ font-size:15px; }
+    header{ font-size:10px; padding:14px 16px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .scanline-glow, .cursor{ animation:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="console">
+  <div class="scanline-glow"></div>
+  <header>
+    <span class="title">ZR-9 // CULLING WARD</span>
+    <span class="id">SUBJECT-FILE: REDACTED</span>
+  </header>
+  <main>
+    <div class="stardate" id="stardate">CRYO-REVIVAL LOG — CYCLE 0001</div>
+    <div id="text-output"></div>
+    <div id="choices"></div>
+    <div class="restart-row" id="restart-row" style="display:none;">
+      <button class="restart-btn" id="restart-btn">▣ RE-INITIALIZE SUBJECT</button>
+    </div>
+  </main>
+  <footer>
+    <span id="vitals">PULSE: <span id="pulse">--</span> · SPECIMEN CLASS: <span id="specclass">UNASSIGNED</span></span>
+    <span id="chapter-label">CH. 0 / 5</span>
+  </footer>
+</div>
+
+<script>
+(function(){
+
+  const outputEl = document.getElementById('text-output');
+  const choicesEl = document.getElementById('choices');
+  const stardateEl = document.getElementById('stardate');
+  const pulseEl = document.getElementById('pulse');
+  const specclassEl = document.getElementById('specclass');
+  const chapterEl = document.getElementById('chapter-label');
+  const restartRow = document.getElementById('restart-row');
+  const restartBtn = document.getElementById('restart-btn');
+
+  // ---------------------------------------------------------
+  // STATE
+  // ---------------------------------------------------------
+  let state = {
+    species: null,       // insectoid | reptilian | grey | nordic
+    trust: {
+      insectoid: 0,
+      reptilian: 0,
+      grey: 0,
+      nordic: 0
+    },
+    clonesReleased: 0,
+    memoryFragments: 0,
+    sedated: true,
+    chapter: 0
+  };
+
+  let typing = false;
+  let skipRequested = false;
+  let currentNode = null;
+
+  // ---------------------------------------------------------
+  // TYPEWRITER ENGINE
+  // ---------------------------------------------------------
+  function clearOutput(){
+    outputEl.innerHTML = '';
+  }
+
+  function sleep(ms){
+    return new Promise(res => setTimeout(res, ms));
+  }
+
+  async function typeLine(text, className, speed){
+    speed = speed || 16;
+    const lineEl = document.createElement('span');
+    lineEl.className = 'line' + (className ? ' ' + className : '');
+    outputEl.appendChild(lineEl);
+
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    lineEl.appendChild(cursor);
+
+    let i = 0;
+    while(i < text.length){
+      if(skipRequested){
+        cursor.remove();
+        lineEl.textContent = text;
+        lineEl.appendChild(cursor);
+        cursor.remove();
+        return;
+      }
+      cursor.insertAdjacentText('beforebegin', text[i]);
+      i++;
+      // vary speed slightly, pause on punctuation
+      let delay = speed;
+      const c = text[i-1];
+      if(c === ','){ delay = speed * 6; }
+      if(c === '.' || c === '?' || c === '!'){ delay = speed * 10; }
+      if(c === '\n'){ delay = speed * 4; }
+      await sleep(delay);
+    }
+    cursor.remove();
+  }
+
+  async function renderLines(lines){
+    typing = true;
+    skipRequested = false;
+    for(const l of lines){
+      if(typeof l === 'string'){
+        await typeLine(l, '', 16);
+      } else {
+        await typeLine(l.text, l.cls || '', l.speed || 16);
+      }
+    }
+    typing = false;
+  }
+
+  function instantFinish(){
+    if(typing){
+      skipRequested = true;
+    }
+  }
+
+  // ---------------------------------------------------------
+  // VITALS / UI HELPERS
+  // ---------------------------------------------------------
+  function updateVitals(){
+    const pulseMap = {
+      0: '47 BPM — SEDATED',
+      1: '61 BPM',
+      2: '78 BPM',
+      3: '94 BPM — ELEVATED',
+      4: '110 BPM — CRITICAL',
+      5: 'FLATLINE'
+    };
+    pulseEl.textContent = pulseMap[Math.min(state.chapter, 5)] || '--';
+    specclassEl.textContent = state.species ? state.species.toUpperCase() + '-LINKED' : 'UNASSIGNED';
+    chapterEl.textContent = 'CH. ' + state.chapter + ' / 5';
+  }
+
+  function setStardate(text){
+    stardateEl.textContent = text;
+  }
+
+  // ---------------------------------------------------------
+  // SCENE GRAPH
+  // Each node: { stardate, lines: [...], choices: [{label, species, next}] , onEnter }
+  // ---------------------------------------------------------
+
+  const SCENES = {};
+
+  SCENES.start = {
+    stardate: "CRYO-REVIVAL LOG — CYCLE 0001",
+    onEnter: () => { state.chapter = 0; updateVitals(); },
+    lines: [
+      {text:"COLD. The first thing is cold — not a temperature but an absence, like the inside of your bones has been hollowed and filled with static.", cls:""},
+      {text:"You open your eyes. There are no eyelids to speak of. There is only the sudden, brutal fact of light.", cls:""},
+      {text:"[ AMBER SODIUM GLOW — A CEILING OF RIBBED CHROME, BREATHING SLOWLY LIKE A LUNG ]", cls:"flavor"},
+      {text:"A restraint web of pale fiber holds you to a slab the temperature of a morgue drawer. Somewhere below the floor, machinery hums in three-part harmony — a chord that sounds almost like a held breath.", cls:""},
+      {text:"You remember a name. You think it might be yours. You are not sure it matters anymore.", cls:""},
+      {text:"On the wall opposite, scratched into the chrome by a fingernail, by something — four symbols. Four glyphs, each circled by a different hand, each circle worn smooth by repetition, like a rosary.", cls:""},
+      {text:"A vox-grille crackles to life above you. The voice that emerges is wet, layered, three-toned — speaking in a frequency that arrives behind your teeth before it reaches your ears.", cls:""},
+      {text:"\"SUBJECT 7-DELTA. TEMPLATE STABLE. SELECT YOUR HANDLER.\"", cls:"speaker"},
+      {text:"Beneath the words, you feel it — a pull. Four presences, watching through four sets of eyes, from somewhere very far away and somewhere very close at once. Zeta Reticuli is thirty-nine light-years from the Earth you almost remember. It is also, apparently, right outside this door.", cls:""}
+    ],
+    choices: [
+      {label:"The glyph shaped like a folded wing — chitin-dark, humming with low static. (INSECTOID)", species:"insectoid", next:"insectoid_intro"},
+      {label:"The glyph shaped like a coiled, lidless eye — cold green, patient. (REPTILIAN)", species:"reptilian", next:"reptilian_intro"},
+      {label:"The glyph shaped like a smooth black almond — utterly without feature. (GREY)", species:"grey", next:"grey_intro"},
+      {label:"The glyph shaped like a tall, radiant figure — pale gold, achingly familiar. (NORDIC)", species:"nordic", next:"nordic_intro"}
+    ]
+  };
+
+  // ---------------- INSECTOID PATH ----------------
+  SCENES.insectoid_intro = {
+    stardate: "WARD 7-DELTA — THE HIVE GALLERIES",
+    onEnter: () => { state.species = 'insectoid'; state.trust.insectoid += 1; state.chapter = 1; updateVitals(); },
+    lines: [
+      {text:"The restraints loosen with a sound like cracking knuckles. You sit up too fast and the room tilts — chrome ribs above you resolve, on a second look, into something organic. Not built. Grown.", cls:""},
+      {text:"The walls are honeycombed, each cell the size of a coffin, each cell occupied by a shape under translucent membrane. Some of the shapes move, slowly, in their sleep.", cls:""},
+      {text:"A figure detaches from the shadow beside your slab. It stands seven feet, segmented, glistening like wet obsidian — four jointed arms folded against a thorax that ticks faintly, a clock made of chitin. Compound eyes catch the amber light and break it into ten thousand small reflections of your own face.", cls:""},
+      {text:"\"You chose the Wing-Clade,\" it says, and its mandibles do not move — the voice arrives from everywhere, a chorus of clicks translated into your skull. \"Efficient. The others would have made you grieve first. We find grief... wasteful.\"", cls:"speaker"},
+      {text:"It gestures with one segmented limb toward the honeycombed wall. Through the membrane of the nearest cell, you realize you are looking at a face. Your face. Eyes closed, chest rising and falling in perfect rhythm with your own.", cls:""},
+      {text:"\"Cycle 0001 through Cycle 0006,\" the Clade-voice continues, almost fondly. \"Templates of you. We do not waste a useful pattern. Each carries a portion of what you were. Memory is... distributed. Like eggs in many chambers, in case the wasp comes for one nest.\"", cls:"speaker"},
+      {text:"[ A FAINT WARMTH BLOOMS BEHIND YOUR STERNUM — RECOGNITION, OR SOMETHING WEARING ITS SHAPE ]", cls:"flavor"},
+      {text:"\"There is a flaw, however,\" it adds, and for the first time something in the chorus sounds almost careful. \"Cycle 0004 woke early. Cycle 0004 is loose in the Lower Galleries. It carries forty percent of your original neural lattice — including, we suspect, whatever you are trying very hard not to remember about a daughter named Mara.\"", cls:"speaker"},
+      {text:"The name lands like a struck bell. Mara. Yes. There was a Mara. There was a small hand in yours on a porch somewhere warm, somewhere with real sky.", cls:""},
+      {text:"\"We require Cycle 0004 returned to its chamber. Intact, if possible. The Reptile-Clade believes it should be... harvested for parts instead. They are downstairs now, making their case to it directly. You have perhaps eleven minutes before their argument becomes persuasive.\"", cls:"speaker"}
+    ],
+    choices: [
+      {label:"\"Take me to the Lower Galleries. Now.\" — Rush toward Cycle 0004 before the Reptilians reach it.", species:"insectoid", next:"insect_rush"},
+      {label:"\"Why does a clone need a daughter's memory? What are you actually building?\" — Press for the truth first.", species:"insectoid", next:"insect_question"}
+    ]
+  };
+
+  SCENES.insect_question = {
+    stardate: "WARD 7-DELTA — THE HIVE GALLERIES",
+    onEnter: () => { state.trust.insectoid += 1; state.memoryFragments += 1; },
+    lines: [
+      {text:"The Clade-voice pauses — an oddly mechanical hesitation, like a recording catching on a scratch.", cls:""},
+      {text:"\"You ask the correct question late. Most subjects ask it never, or ask it screaming, which amounts to the same wasted breath.\"", cls:"speaker"},
+      {text:"It extends one segmented arm toward the honeycomb wall, and the membranes ripple — you see, now, that the sleeping templates are not identical. Cycle 0002's hands are larger. Cycle 0005's hair has gone grey at the temples, decades ahead of schedule. Each one has been... edited.", cls:""},
+      {text:"\"A single human mind, intact, is fragile cargo. It breaks under the kind of pressure we require — pressure of distance, pressure of years, pressure of grief. So: we copy. We distribute the load across six vessels, each tuned to carry a different weight. Cycle 0004 was tuned for grief specifically. It carries Mara so that you would not have to.\"", cls:"speaker"},
+      {text:"\"This was, we believed, a mercy.\"", cls:"speaker"},
+      {text:"[ THE HONEYCOMB TICKS AND SHIFTS — SOMEWHERE BELOW, A FAR-OFF SCREAM, CUT SHORT ]", cls:"flavor"},
+      {text:"\"That sound is the Reptile-Clade beginning its argument. We have perhaps nine minutes now, not eleven. Do you still require philosophy, Subject 7-Delta, or shall we move?\"", cls:"speaker"}
+    ],
+    choices: [
+      {label:"\"Move. We talk while we run.\" — Head for the Lower Galleries.", species:"insectoid", next:"insect_rush"}
+    ]
+  };
+
+  SCENES.insect_rush = {
+    stardate: "DESCENT — LOWER GALLERIES, CYCLE 0001/0004",
+    onEnter: () => { state.chapter = 2; updateVitals(); },
+    lines: [
+      {text:"The Wing-Clade moves with a silence that should be impossible for something its size — four legs finding the dark in perfect sequence, a black tide flowing down a spiral ramp that wasn't visible until you stepped onto it.", cls:""},
+      {text:"The air thickens as you descend. Sweet, faintly chemical — the smell of amniotic solution and old pennies. The honeycomb walls give way to rows of tanks, vertical, man-sized, each lit from within by a sourceless green-grey glow.", cls:""},
+      {text:"In tank after tank, you see yourself. Not sleeping now — suspended, eyes open, unblinking, mouths slightly parted as if mid-sentence in a conversation that ended nine years ago.", cls:""},
+      {text:"\"CYCLE 0004,\" the Clade-voice announces, and ahead, in the open doorway of the last chamber, a shape turns toward the sound.", cls:""},
+      {text:"It is you. Or it was. The skin has the grey-green pallor of long suspension, and one eye has not finished re-pigmenting — it sits pale gold in a tired face, watching you with an expression you recognize from mirrors: the specific exhaustion of a parent who has not slept in three years.", cls:""},
+      {text:"\"You came,\" Cycle 0004 says, and the voice is yours, cracked from disuse. \"I told them you wouldn't. I told them you'd let them have me, because that's what you do — you let things be taken if it's quiet enough.\"", cls:"speaker"},
+      {text:"Behind Cycle 0004, in the dark of the chamber, two reptilian shapes uncoil from the shadows — low, broad, scaled in dull olive-bronze, throat sacs pulsing slow amber. Their eyes are vertical-slitted and entirely without sympathy. One of them is holding something. A small shoe. Child-sized.", cls:""},
+      {text:"\"WE WERE SIMPLY ASKING,\" rumbles the nearer Reptilian, voice like gravel sliding underwater, \"WHETHER THE LATTICE COULD BE EXTRACTED WHILE THE BODY YET LIVED. CYCLE 0004 HAS BEEN... UNCOOPERATIVE ON THE SUBJECT OF MARA.\"", cls:"speaker"},
+      {text:"[ YOUR PULSE SPIKES. SOMEWHERE, A MACHINE NOTES THIS AND ADJUSTS A DOSAGE ]", cls:"flavor"}
+    ],
+    choices: [
+      {label:"Step between Cycle 0004 and the Reptilians. \"It's not yours to extract. Neither of us is.\"", species:"insectoid", next:"insect_protect"},
+      {label:"Speak directly to Cycle 0004 — your own face, your own grief. \"Tell me about Mara. Tell me what they don't know.\"", species:"insectoid", next:"insect_mara"}
+    ]
+  };
+
+  SCENES.insect_protect = {
+    stardate: "LOWER GALLERIES — STANDOFF",
+    onEnter: () => { state.trust.insectoid += 2; state.trust.reptilian -= 1; },
+    lines: [
+      {text:"You put yourself in the gap between the tank and the two Reptilians, and for one absurd moment you are aware of how little that means — you are unarmed, half-sedated, and your opponents have throats that could swallow your skull whole.", cls:""},
+      {text:"But the Wing-Clade flows forward beside you, and its four arms unfold with a sound like a drawer full of knives opening at once.", cls:""},
+      {text:"\"THE PRIME SPECIMEN HAS CHOSEN ITS HANDLER,\" the Clade-voice says, and there is something almost smug in the chorus now. \"CYCLE 0004 IS WING-CLADE PROPERTY UNDER THE DISTRIBUTION ACCORD. YOUR HARVEST REQUEST IS DENIED, AND NOTED, AND WILL BE REMEMBERED.\"", cls:"speaker"},
+      {text:"The Reptilians' throat sacs deflate slowly — not retreat, exactly. Recalculation. The nearer one sets down the small shoe with exaggerated care, the way a predator disengages when the cost of a kill has just become too high to justify.", cls:""},
+      {text:"\"NOTED,\" it rumbles back, and the two shapes pour backward into the dark between the tanks, gone almost before you register the movement.", cls:""},
+      {text:"Cycle 0004 sags against the tank's frame, and you catch it — catch yourself — under one arm. Up close, the resemblance is unbearable. Same scar above the left eyebrow. Same nervous habit of touching the collarbone.", cls:""},
+      {text:"\"Thank you,\" it says, very quietly. \"I've been awake for eleven days. They kept asking about the porch. The blue door. They wanted to know if it was a real place or a — a 'comfort construct.' I wouldn't tell them.\"", cls:"speaker"},
+      {text:"[ THE NAME SURFACES FULLY NOW: MARA. SEVEN YEARS OLD. A BLUE DOOR. A PORCH IN A PLACE CALLED — THE THOUGHT SLIDES AWAY, GREASED BY SEDATIVE, BEFORE YOU CAN CATCH THE WORD ]", cls:"flavor"}
+    ],
+    choices: [
+      {label:"Continue.", species:"insectoid", next:"insect_finale"}
+    ]
+  };
+
+  SCENES.insect_mara = {
+    stardate: "LOWER GALLERIES — STANDOFF",
+    onEnter: () => { state.trust.insectoid += 1; state.memoryFragments += 2; },
+    lines: [
+      {text:"You ignore the Reptilians — a gamble, but you can feel the Wing-Clade's bulk shift to cover that flank — and step close to Cycle 0004, close enough to see your own pulse fluttering in its throat.", cls:""},
+      {text:"\"Tell me,\" you say. \"Tell me about the porch. The blue door. Tell me before they take it from both of us.\"", cls:""},
+      {text:"Something in Cycle 0004's face breaks open — relief, maybe, or just the simple animal comfort of being recognized.", cls:""},
+      {text:"\"She had a stuffed fox with one ear chewed off,\" it says, words tumbling now, racing the sedative creeping back into both your bloodstreams. \"She called it Captain. She used to line up her shoes by the blue door in size order, smallest to biggest, even though she only had two pairs. She — she asked me once if the stars were holes in something, or lights behind something, and I told her I didn't know, and that was true, and three weeks later—\"", cls:"speaker"},
+      {text:"It stops. The throat-sac Reptilians lean in, fractionally, drawn by the data the way sharks are drawn by a change in the water.", cls:""},
+      {text:"\"Three weeks later you were both taken from the porch,\" the nearer Reptilian finishes, almost gently, almost kind. \"WE HAVE THE TIMESTAMP. WE HAVE MARA'S FILE TOO, SUBJECT 7-DELTA. SHE IS TWO LEVELS DOWN. WOULD YOU LIKE TO SEE HER, OR WOULD YOU LIKE TO CONTINUE TELLING US STORIES?\"", cls:"speaker"},
+      {text:"The Wing-Clade's chorus drops to something low and warning. \"THAT INFORMATION WAS NOT CLEARED FOR DISCLOSURE.\"", cls:"speaker"},
+      {text:"[ YOUR HANDS ARE SHAKING. CYCLE 0004'S HANDS ARE SHAKING. THE SAME HANDS. ]", cls:"flavor"}
+    ],
+    choices: [
+      {label:"Continue.", species:"insectoid", next:"insect_finale"}
+    ]
+  };
+
+  SCENES.insect_finale = {
+    stardate: "CYCLE 0001 — TERMINAL ENTRY",
+    onEnter: () => { state.chapter = 3; updateVitals(); },
+    lines: [
+      {text:"The Wing-Clade's many eyes turn toward you both — toward the two of you, the original and the copy, standing close enough now that you cannot remember, with any confidence, which set of memories started in which skull.", cls:""},
+      {text:"\"A choice,\" the Clade-voice says, and for once it does not sound efficient. It sounds, almost, curious. \"Cycle 0004 may return to suspension — dormant, safe, its lattice preserved against future need. Or it may walk out of this chamber beside you, as a separate entity, and the Wing-Clade will log this facility's first voluntary bifurcation in eleven thousand cycles. The Reptile-Clade will object. The Grey Custodians will record it without comment, as they record everything. The Nordic Choir will... grieve, probably, for reasons of their own. They grieve about everything.\"", cls:"speaker"},
+      {text:"\"But the decision is yours, 7-Delta. You, or both of you. Mara's file remains two levels down regardless. That door stays open either way — for one of you, or for two.\"", cls:"speaker"},
+      {text:"Cycle 0004 looks at you with your own eyes, and says nothing, because it has already said everything it has.", cls:""},
+      {text:"[ END OF RECORDED CYCLE. THE WING-CLADE WAITS, WITH THE PATIENCE OF SOMETHING THAT HAS WAITED ELEVEN THOUSAND TIMES BEFORE. ]", cls:"flavor"},
+      {text:"— TRANSMISSION INTERRUPTED —", cls:"system"},
+      {text:"This branch of the record ends here. The Wing-Clade keeps its bargains, mostly, and remembers everything — including you.", cls:"system"}
+    ],
+    choices: [],
+    ending: true
+  };
+
+  // ---------------- REPTILIAN PATH ----------------
+  SCENES.reptilian_intro = {
+    stardate: "WARD 7-DELTA — THE DEEP CHANCERY",
+    onEnter: () => { state.species = 'reptilian'; state.trust.reptilian += 1; state.chapter = 1; updateVitals(); },
+    lines: [
+      {text:"The restraint web does not loosen. Instead, the slab itself tilts — slowly, with the deliberate weight of a drawbridge — until you are standing, still bound, in a vertical chamber lined with dark basalt-like plates that radiate a low, dry heat.", cls:""},
+      {text:"Two shapes rise from a recessed pit below, ascending on some unseen platform. Reptilian — broad, low-slung, scaled in a deep olive-bronze that seems to drink the amber light rather than reflect it. Their eyes are vertical-slitted, gold-ringed, and entirely, patiently still.", cls:""},
+      {text:"\"YOU CHOSE THE COIL,\" the nearer one says, voice a gravel rumble that you feel in your sternum before you hear it. \"THE WING-CLADE WOULD HAVE LIED TO YOU SOFTLY. THE GREY CUSTODIANS WOULD NOT HAVE SPOKEN AT ALL. WE OFFER A DIFFERENT COURTESY: TRUTH, DELIVERED WITHOUT CUSHIONING. MOST FIND IT WORSE.\"", cls:"speaker"},
+      {text:"The restraints finally release — all at once, with a snap, so that you stumble and the Reptilian catches your arm in a grip like a closing trap, then, with what might be consideration, sets you upright and lets go.", cls:""},
+      {text:"\"YOU ARE NOT THE FIRST 7-DELTA TO STAND IN THIS CHANCERY,\" it continues. \"YOU ARE NOT EVEN THE FOURTH. THE BODY YOU OCCUPY IS CYCLE 0007. THE ORIGINAL — THE TRUE FIRST — DIED ON THE TABLE NINE CYCLES AGO, OF WHAT YOUR SPECIES CALLS GRIEF AND OURS CALLS 'SYSTEM FAILURE UNDER EMOTIONAL LOAD.' WE HAVE BEEN MAINTAINING THE PATTERN EVER SINCE. YOU ARE A COPY OF A COPY OF A COPY, SUBJECT 7-DELTA. THIS IS THE TRUTH WE OFFER. WE COULD HAVE LET YOU BELIEVE OTHERWISE, AS THE OTHERS WOULD HAVE.\"", cls:"speaker"},
+      {text:"[ THE FLOOR IS WARM UNDERFOOT. SOMEWHERE BELOW, A SOUND LIKE BREATHING — SLOW, REGULAR, ENORMOUS ]", cls:"flavor"},
+      {text:"\"There is a use for this knowledge,\" the second Reptilian adds, and its tone is almost — almost — gentle. \"THE GREY CUSTODIANS ARE PREPARING TO DECANT CYCLE 0008 WITHIN THE HOUR. THEY BELIEVE THE PATTERN HAS STABILIZED. WE DO NOT. WE BELIEVE 0008 WILL FAIL EXACTLY AS 0001 THROUGH 0006 FAILED — UNLESS SOMETHING IN THE PATTERN CHANGES FIRST. YOU ARE THAT SOMETHING, SUBJECT 7-DELTA. THE QUESTION IS WHETHER YOU WISH TO BE.\"", cls:"speaker"}
+    ],
+    choices: [
+      {label:"\"Show me what killed the others.\" — Demand to see the failure point directly, however ugly.", species:"reptilian", next:"reptile_truth"},
+      {label:"\"If I'm a copy of a copy, why does it matter what I want?\" — Push back on the premise itself.", species:"reptilian", next:"reptile_pushback"}
+    ]
+  };
+
+  SCENES.reptile_truth = {
+    stardate: "THE DEEP CHANCERY — ARCHIVE PIT",
+    onEnter: () => { state.trust.reptilian += 2; },
+    lines: [
+      {text:"The Reptilians exchange a look — if it can be called that, two sets of slit-pupiled eyes narrowing in what might be approval.", cls:""},
+      {text:"\"DIRECT. GOOD. THE CUSTODIANS WOULD HAVE SHOWN YOU A SUMMARY. WE WILL SHOW YOU THE ARCHIVE ITSELF.\"", cls:"speaker"},
+      {text:"The basalt floor splits silently along a seam you hadn't noticed, and the platform descends — slow, smooth, into a chamber ringed with six alcoves. In each alcove, a body. Not in tanks. Not suspended. Simply seated, slumped, the posture of something that stopped mid-thought and never resumed.", cls:""},
+      {text:"Six versions of your face. Cycle 0001 through Cycle 0006. Each one's hands rest in its lap, palms up, fingers slightly curled — as if each had been holding something small at the moment it stopped.", cls:""},
+      {text:"\"EACH PATTERN WAS GIVEN THE SAME CORE MEMORY SET,\" the Reptilian says, moving among the alcoves with unhurried steps. \"A CHILD. A PORCH. A DOOR PAINTED THE COLOR OF A SKY THAT NO LONGER EXISTS FOR EITHER OF YOU. EACH PATTERN WAS THEN SHOWN, AT VARYING INTERVALS, A SINGLE RECORDED IMAGE: THE CHILD, MARA, IN THIS FACILITY'S CUSTODY, ALIVE, BEING PROCESSED FOR HER OWN TEMPLATE EXTRACTION.\"", cls:"speaker"},
+      {text:"\"EACH PATTERN'S CARDIAC AND NEURAL SYSTEMS FAILED WITHIN FOURTEEN MINUTES OF VIEWING THAT IMAGE. NOT FROM THE IMAGE ITSELF — THE PATTERN COULD TOLERATE THE IMAGE. THE FAILURE OCCURRED WHEN EACH PATTERN REALIZED IT COULD DO NOTHING WITH THE INFORMATION. HELPLESSNESS, SUBJECT 7-DELTA, NOT GRIEF, IS WHAT KILLS YOUR KIND. THE GREY CUSTODIANS RECORDED THIS AS 'EMOTIONAL OVERLOAD' AND MOVED ON. THEY DID NOT ASK WHY. WE ASKED WHY.\"", cls:"speaker"},
+      {text:"[ ONE OF THE SIX BODIES — CYCLE 0003 — STILL HAS ITS EYES OPEN. THEY HAVE NOT BEEN CLOSED. NO ONE HERE CLOSES EYES. ]", cls:"flavor"},
+      {text:"\"CYCLE 0008 WILL BE SHOWN THE SAME IMAGE WITHIN THE HOUR, AS PART OF STANDARD COMPLIANCE TESTING. UNLESS THE PATTERN IS GIVEN, THIS TIME, AN ACTION TO TAKE. EVEN A FUTILE ONE. EVEN A SMALL ONE. WE BELIEVE THAT IS THE VARIABLE THAT WAS MISSING. WE BELIEVE YOU — CYCLE 0007, STILL FUNCTIONAL AFTER NINE CYCLES OF EXPOSURE TO THIS SAME ARCHIVE — MAY BE THE EVIDENCE FOR THAT THEORY.\"", cls:"speaker"}
+    ],
+    choices: [
+      {label:"Continue.", species:"reptilian", next:"reptile_choice"}
+    ]
+  };
+
+  SCENES.reptile_pushback = {
+    stardate: "THE DEEP CHANCERY",
+    onEnter: () => { state.trust.reptilian += 1; state.memoryFragments += 1; },
+    lines: [
+      {text:"The Reptilian's throat sac inflates slowly — the closest thing its kind has, you suspect, to a thoughtful pause.", cls:""},
+      {text:"\"AN HONEST QUESTION. WE WILL GIVE IT AN HONEST ANSWER, THOUGH YOU MAY NOT WANT IT.\"", cls:"speaker"},
+      {text:"\"IT MATTERS BECAUSE THE PATTERN — THE THING THAT MAKES 7-DELTA, 7-DELTA, REGARDLESS OF WHICH BODY CARRIES IT — HAS A PROPERTY WE FIND USEFUL. CALL IT 'PERSISTENCE OF CARING.' EVERY COPY, WITHOUT EXCEPTION, CONTINUES TO ACT AS THOUGH MARA MATTERS, EVEN AFTER BEING TOLD, REPEATEDLY, THAT THE ORIGINAL MARA HAS BEEN DEAD FOR ELEVEN YEARS AND THE ONE IN THIS FACILITY IS A TEMPLATE — A COPY OF A COPY, AS YOU ARE. THE CARING DOES NOT DEGRADE ACROSS GENERATIONS OF COPYING. THIS IS, BY OUR STANDARDS, REMARKABLE. IT IS ALSO, BY OUR STANDARDS, A RESOURCE.\"", cls:"speaker"},
+      {text:"\"SO: IT MATTERS WHAT YOU WANT BECAUSE WHAT YOU WANT HAS NEVER CHANGED, ACROSS SEVEN ITERATIONS, AND WE WOULD LIKE TO KNOW WHY.\"", cls:"speaker"},
+      {text:"[ A SMALL, COLD CLARITY SETTLES OVER YOU — THE FIRST THOUGHT THAT FEELS ENTIRELY YOUR OWN SINCE WAKING ]", cls:"flavor"},
+      {text:"\"There is also,\" the second Reptilian adds, almost as an afterthought, \"THE MATTER OF CYCLE 0008, DECANTING WITHIN THE HOUR, WHO WILL ASK THE EXACT SAME QUESTION YOU JUST ASKED, AND RECEIVE THE EXACT SAME ANSWER, UNLESS THE PATTERN IS INTERRUPTED BEFORE THEN.\"", cls:"speaker"}
+    ],
+    choices: [
+      {label:"Continue.", species:"reptilian", next:"reptile_choice"}
+    ]
+  };
+
+  SCENES.reptile_choice = {
+    stardate: "DEEP CHANCERY — DECANT CHAMBER ACCESS",
+    onEnter: () => { state.chapter = 2; updateVitals(); },
+    lines: [
+      {text:"The Reptilians lead — or escort, the distinction is unclear — through a low archway into a chamber dominated by a single vertical tank, its surface fogged with condensation. Through the fog, a shape, curled, not yet awake.", cls:""},
+      {text:"\"CYCLE 0008,\" the nearer Reptilian says. \"FOURTEEN MINUTES FROM DECANT. THE COMPLIANCE IMAGE — MARA, IN CUSTODY — IS QUEUED IN THE FACILITY'S PRIMARY DISPLAY, SCHEDULED FOR AUTOMATIC PLAYBACK AT THE MOMENT OF FULL CONSCIOUSNESS. THIS IS STANDARD PROCEDURE. THE GREY CUSTODIANS DO NOT DEVIATE FROM STANDARD PROCEDURE.\"", cls:"speaker"},
+      {text:"\"WE CAN OFFER YOU ACCESS TO THE DISPLAY OVERRIDE. YOU COULD REPLACE THE COMPLIANCE IMAGE — SHOW 0008 SOMETHING ELSE AT THE MOMENT OF WAKING. A LIE, PERHAPS, IF A KIND ONE. OR THE TRUTH, BUT FRAMED AS A TASK RATHER THAN A WOUND. 'MARA IS HERE, AND HERE IS WHAT YOU CAN DO ABOUT IT,' INSTEAD OF 'MARA IS HERE, AND THERE IS NOTHING TO BE DONE.'\"", cls:"speaker"},
+      {text:"\"ALTERNATIVELY — AND WE OFFER THIS WITHOUT JUDGMENT — YOU COULD LEAVE THE DISPLAY UNTOUCHED. CYCLE 0008 WOULD LIKELY FAIL, AS THE OTHERS DID, WITHIN FOURTEEN MINUTES. THE FACILITY WOULD LOG IT AS EXPECTED ATTRITION. YOU, CYCLE 0007, WOULD REMAIN THE ONLY ACTIVE PATTERN — AND THEREFORE THE SOLE FOCUS OF FUTURE RESOURCES. SOME PATTERNS, WE HAVE OBSERVED, FIND THAT PROSPECT RESTFUL.\"", cls:"speaker"},
+      {text:"[ THROUGH THE FOGGED GLASS, THE CURLED SHAPE TWITCHES. SOMEWHERE, A TIMER BEGINS ITS COUNT. ]", cls:"flavor"}
+    ],
+    choices: [
+      {label:"\"Give me the override. Replace the image — Mara becomes a task, not a wound, for 0008.\"", species:"reptilian", next:"reptile_save"},
+      {label:"\"Leave it. Let it log as attrition.\" — Say nothing, and let the timer run.", species:"reptilian", next:"reptile_let_go"}
+    ]
+  };
+
+  SCENES.reptile_save = {
+    stardate: "CYCLE 0007 — TERMINAL ENTRY",
+    onEnter: () => { state.trust.reptilian += 2; state.chapter = 3; updateVitals(); },
+    lines: [
+      {text:"The override panel rises from the floor at the Reptilian's gesture — a slab of dark glass, warm to the touch, humming with the same low frequency as the basalt walls.", cls:""},
+      {text:"You don't have words for what you're doing, exactly. You record something instead — a short loop, your own voice, the only voice 0008 will recognize as itself. You say the things that, across seven cycles, no one ever thought to say first: that Mara's location is known. That it is two levels down. That the door is not locked. That doing something, however small, is still a thing that can be done.", cls:""},
+      {text:"You queue it to play the instant the tank opens.", cls:""},
+      {text:"The Reptilians watch without comment as the fog clears and Cycle 0008 — your face, younger somehow, less worn — opens its eyes for the first time, and instead of an image of helplessness, hears your own voice telling it where to walk.", cls:""},
+      {text:"0008's breathing stays even. The timer reaches fourteen minutes and passes it. Fifteen. Sixteen.", cls:""},
+      {text:"\"REMARKABLE,\" the nearer Reptilian rumbles, and for once there is no calculation in it at all — just something that, in a human throat, might have been called wonder. \"THE VARIABLE WAS THE VARIABLE. WE WILL NEED TO REVISE SEVERAL PROTOCOLS.\"", cls:"speaker"},
+      {text:"\"COME,\" it adds, turning toward the archway. \"MARA'S CHAMBER IS TWO LEVELS DOWN. YOU TOLD 0008 THE DOOR WAS UNLOCKED. WE SHOULD MAKE THAT TRUE.\"", cls:"speaker"},
+      {text:"— TRANSMISSION INTERRUPTED —", cls:"system"},
+      {text:"This branch of the record ends here. The Coil keeps no comforting illusions, but it keeps its word. For now, that is more than the facility has offered anyone in nine cycles.", cls:"system"}
+    ],
+    choices: [],
+    ending: true
+  };
+
+  SCENES.reptile_let_go = {
+    stardate: "CYCLE 0007 — TERMINAL ENTRY",
+    onEnter: () => { state.trust.reptilian -= 1; state.chapter = 3; updateVitals(); },
+    lines: [
+      {text:"You say nothing. The Reptilians do not press you — they simply wait, with the terrible patience of things that have outlived weather.", cls:""},
+      {text:"The fog clears. Cycle 0008 opens its eyes. The compliance image plays exactly as scheduled — Mara, small, in a holding bay two levels down, being fitted with sensors by Grey hands that move like they are folding laundry.", cls:""},
+      {text:"0008's breathing changes almost immediately. Fast, then faster, then a long catch — and then nothing. The tank's internal monitors chime once, softly, and go dark.", cls:""},
+      {text:"\"LOGGED,\" the nearer Reptilian says, without inflection. \"EXPECTED ATTRITION. CYCLE 0008, TERMINATED, FOURTEEN MINUTES POST-DECANT. CONSISTENT WITH PRIOR PATTERN.\"", cls:"speaker"},
+      {text:"It turns to you, and for a moment its slit eyes hold something that might, in a kinder species, be called pity — or might simply be the recalibration of an instrument that has just gathered useful data.", cls:""},
+      {text:"\"YOU ARE NOW THE SOLE ACTIVE PATTERN, SUBJECT 7-DELTA. THE FACILITY WILL DIRECT ITS RESOURCES ACCORDINGLY. THIS IS, AS WE SAID, RESTFUL — FOR SOME.\"", cls:"speaker"},
+      {text:"[ SOMEWHERE TWO LEVELS DOWN, MARA'S FILE REMAINS OPEN, UNCLAIMED, WAITING FOR A VERSION OF YOU THAT WAS WILLING TO ACT WHILE HELPLESS. THAT VERSION JUST STOPPED EXISTING. ]", cls:"flavor"},
+      {text:"— TRANSMISSION INTERRUPTED —", cls:"system"},
+      {text:"This branch of the record ends here. The Coil does not lie about consequences. It simply lets you choose them.", cls:"system"}
+    ],
+    choices: [],
+    ending: true
+  };
+
+  // ---------------- GREY PATH ----------------
+  SCENES.grey_intro = {
+    stardate: "WARD 7-DELTA — CUSTODIAL ARCHIVE",
+    onEnter: () => { state.species = 'grey'; state.trust.grey += 1; state.chapter = 1; updateVitals(); },
+    lines: [
+      {text:"There is no transition. One moment you are on the slab; the next, without any sensation of standing or walking, you are simply elsewhere — a vast white-grey chamber, featureless, lit from no visible source, cold in a way that has nothing to do with temperature.", cls:""},
+      {text:"Three figures stand in a loose triangle around you. Short, slight, grey-skinned, with enormous black eyes that show no pupil, no white, nothing but depth. They do not appear to breathe. They do not appear to need to.", cls:""},
+      {text:"\"You selected the Almond,\" one says — or all three say, simultaneously, in a voice utterly without warmth or coldness, a voice like a form being filled out. \"This is the correct designation for what we are. We do not have a poetic name for ourselves. Poetry implies an audience.\"", cls:"speaker"},
+      {text:"The chamber's walls flicker, and suddenly you are surrounded — on every surface, in every direction — by files. Thousands of them. Each one a face. Many of the faces are yours.", cls:""},
+      {text:"\"You are Subject 7-Delta, Cycle 0001 of the current iteration. There have been forty-one prior iterations of Subject 7-Delta across this facility's operational history, dating back two hundred and three years by your calendar. We are aware this number will distress you. We are stating it regardless, because accuracy is the only courtesy we are equipped to offer.\"", cls:"speaker"},
+      {text:"[ THE FILES SCROLL. YOU SEE YOUR OWN DEATH CERTIFICATE, FORTY TIMES, IN FORTY SLIGHTLY DIFFERENT HANDWRITINGS THAT ARE ALL, SOMEHOW, YOURS. ]", cls:"flavor"},
+      {text:"\"There is a discrepancy in iteration forty-two — your current iteration — that the other Clades have not yet detected, and that we are required, by our own internal protocols, to disclose to you directly before proceeding. We do not enjoy this requirement. We will fulfill it anyway, because that is the function of a Custodian.\"", cls:"speaker"}
+    ],
+    choices: [
+      {label:"\"Tell me the discrepancy.\" — Take the information directly, however it lands.", species:"grey", next:"grey_discrepancy"},
+      {label:"\"Why does it matter to you whether I'm distressed?\" — Ask about the Greys themselves first.", species:"grey", next:"grey_about"}
+    ]
+  };
+
+  SCENES.grey_about = {
+    stardate: "CUSTODIAL ARCHIVE",
+    onEnter: () => { state.trust.grey += 1; state.memoryFragments += 1; },
+    lines: [
+      {text:"The three Greys tilt their heads in unison — a movement so synchronized it should be unsettling, and is, but in a way that feels less like menace and more like watching three screens display the same frame at once.", cls:""},
+      {text:"\"It does not matter to us, in the sense your species means. We do not feel distress, and we do not feel its absence as relief. However: distressed subjects produce unreliable data. Unreliable data requires re-acquisition. Re-acquisition requires resources, time, and — this is the relevant part — additional iterations of Subject 7-Delta.\"", cls:"speaker"},
+      {text:"\"We have processed forty-one prior iterations of you. Each iteration required, on average, eleven point three years of preparation, acquisition, and stabilization before yielding usable data. We are old, Subject 7-Delta, but we are not infinite. Minimizing your distress is, for us, simply an efficiency measure. We mention this not to seem cold. We mention it because we suspect you would prefer the honest reason to a comforting one, based on the response patterns of the prior forty-one.\"", cls:"speaker"},
+      {text:"\"This is, incidentally, the only species-wide trait we have found genuinely interesting in two hundred and three years of study. Your kind almost universally prefers an honest unkindness to a comforting lie, once trust is established — and almost universally cannot tell, on first meeting, which one it is being offered. We find this combination of traits inefficient and, in a sense we have no proper word for, almost moving.\"", cls:"speaker"},
+      {text:"[ ONE OF THE THREE GREYS — FRACTIONALLY, IMPERCEPTIBLY — TURNS ITS ENORMOUS DARK EYES AWAY FROM YOU FOR A MOMENT, TOWARD NOTHING, AS IF LOOKING AT SOMETHING THAT IS NOT IN THE ROOM. ]", cls:"flavor"},
+      {text:"\"The discrepancy remains undisclosed. We will disclose it now, as originally intended.\"", cls:"speaker"}
+    ],
+    choices: [
+      {label:"Continue.", species:"grey", next:"grey_discrepancy"}
+    ]
+  };
+
+  SCENES.grey_discrepancy = {
+    stardate: "CUSTODIAL ARCHIVE — DISCREPANCY LOG",
+    onEnter: () => { state.chapter = 2; state.memoryFragments += 1; updateVitals(); },
+    lines: [
+      {text:"The wall of files contracts, all forty-one prior death certificates folding away, until only two remain — side by side, both labeled SUBJECT 7-DELTA, CYCLE 0001, ITERATION 42.", cls:""},
+      {text:"\"There are two of you,\" the Greys say. \"Both currently active. Both believe themselves to be the original, decanted moments ago, and both are correct — in the sense that neither is a copy of the other. Both are copies of the same source pattern, generated simultaneously, four hours ago, in two separate chambers, as part of a redundancy protocol the Wing-Clade implemented without informing us.\"", cls:"speaker"},
+      {text:"\"The other iteration of you — we will call it 7-Delta-Beta — is currently in the Hive Galleries, under Wing-Clade custody, and has, as of eleven minutes ago, agreed to a 'voluntary bifurcation' that the Wing-Clade is presenting to it as a unique, unprecedented event. It is not unique. It is not unprecedented. It is the second time in this facility's history that two copies of 7-Delta have been active simultaneously, and the first time ended— \"", cls:"speaker"},
+      {text:"The Greys pause. All three, exactly together.", cls:""},
+      {text:"\"—poorly. We will not editorialize further than that word. You may request the full record, but we are obligated to note that the full record contains a description of how the first such instance ended, and that description has historically correlated with the kind of cardiac failure the Reptile-Clade likes to discuss at length. We default to withholding it unless requested.\"", cls:"speaker"},
+      {text:"[ THE WEIGHT OF THE WORD 'POORLY,' DELIVERED WITHOUT INFLECTION, SOMEHOW LANDS HARDER THAN ANY AMOUNT OF DRAMA COULD HAVE. ]", cls:"flavor"},
+      {text:"\"There is also Mara,\" the Greys add, in precisely the same tone, with no transition at all. \"Her template is stable, two levels below this chamber, and is not — we want to be precise here — currently scheduled for any procedure. The Reptile-Clade's interest in her file is real but currently theoretical. You have time on that matter. You do not have time on the matter of 7-Delta-Beta. The bifurcation protocol completes in approximately seven minutes.\"", cls:"speaker"}
+    ],
+    choices: [
+      {label:"\"Show me the full record. I need to know what 'poorly' means before I decide anything.\"", species:"grey", next:"grey_record"},
+      {label:"\"No time for records. Get me to 7-Delta-Beta before the bifurcation completes.\"", species:"grey", next:"grey_rush"}
+    ]
+  };
+
+  SCENES.grey_record = {
+    stardate: "CUSTODIAL ARCHIVE — RECORD 002, ITERATION 17",
+    onEnter: () => { state.trust.grey += 2; state.memoryFragments += 2; },
+    lines: [
+      {text:"\"As requested.\" The Greys do not warn you again. A single file expands to fill the wall — text, mostly, with one still image at the top: two identical figures, facing each other, in a chamber much like the Reptilian archive you might have seen, or might not have, depending on a road not taken.", cls:""},
+      {text:"You read quickly, because the Greys do not slow down for you.", cls:""},
+      {text:"ITERATION 17. Both copies stable for sixty-one minutes. Copies began, independently, attempting to reconstruct the same memory — a porch, a door, a child — and produced two versions that diverged on a single detail: the color of the door. One copy insisted it was blue. The other insisted it was green. Neither copy would concede. Both copies became convinced that conceding the detail meant conceding that its entire memory set — and therefore its entire selfhood — was the 'wrong' copy, the lesser one, the one that could be safely discarded.", cls:""},
+      {text:"Both copies experienced cardiac failure within four minutes of each other. Cause of death, Copy A: cardiac arrest, acute stress. Cause of death, Copy B: cardiac arrest, acute stress. Note appended by Custodial Archive: the door, per the facility's own visual record of the source memory, was blue. Both copies were, on this point, partially correct and partially in error — Copy A had the color right and the shade wrong; Copy B had the shade closer and the color wrong. Neither copy checked the record. Neither copy asked the other what, specifically, it remembered, only whether it agreed.", cls:""},
+      {text:"[ THE GREYS LET THIS SIT, UNCOMMENTED, FOR LONGER THAN THEY HAVE LET ANYTHING SIT SO FAR. ]", cls:"flavor"},
+      {text:"\"We have a theory about Iteration 17,\" they say finally. \"We have never had occasion to test it, because no subsequent pair of 7-Delta copies has survived long enough to reach the disagreement stage. You have approximately five minutes remaining.\"", cls:"speaker"}
+    ],
+    choices: [
+      {label:"Continue.", species:"grey", next:"grey_rush"}
+    ]
+  };
+
+  SCENES.grey_rush = {
+    stardate: "TRANSIT — HIVE GALLERIES ACCESS, FIVE MINUTES TO BIFURCATION",
+    onEnter: () => { state.chapter = 3; updateVitals(); },
+    lines: [
+      {text:"Movement, again without sensation — the white chamber dissolves and reforms as the honeycombed amber-lit walls of the Hive Galleries, the Wing-Clade's territory. One of the three Greys accompanies you; the other two remain behind, unmoving, watching the empty chamber as if it still contained something.", cls:""},
+      {text:"Ahead, in an open chamber ringed with chitin and low static, you see yourself. 7-Delta-Beta — your face, your posture, even your specific way of standing with weight on one hip — facing a honeycomb wall where two cells have begun, slowly, to separate from the structure, drawing apart, a single sleeping shape dividing.", cls:""},
+      {text:"The Wing-Clade hovers nearby, four arms folded, watching the division with what might be pride.", cls:""},
+      {text:"7-Delta-Beta turns at the sound of your approach, and its face does something complicated — recognition, then confusion, then a flicker of something colder. \"You're— there's two of us,\" it says, and you hear, in its voice, the exact cadence of Iteration 17's final sixty-one minutes beginning to repeat. \"That's not — wait. The porch. The door was—\"", cls:"speaker"},
+      {text:"The Grey beside you speaks, quietly, only to you. \"This is the moment, Subject 7-Delta. Iteration 17 failed because both copies sought agreement instead of accuracy, and mistook disagreement for erasure. You have the Custodial record. 7-Delta-Beta does not. You know the door was blue — the true record, not the memory. You have information your counterpart lacks, for the first time in two hundred and three years of this experiment.\"", cls:"speaker"},
+      {text:"[ THE DIVIDING CELL IN THE WALL CONTINUES TO SEPARATE. THE WING-CLADE WATCHES. 7-DELTA-BETA'S HAND HAS GONE TO ITS OWN CHEST, FINGERS SPREAD, THE GESTURE OF SOMETHING CHECKING WHETHER ITS HEART IS STILL DOING WHAT IT SHOULD. ]", cls:"flavor"}
+    ],
+    choices: [
+      {label:"\"The door was blue. I'm not telling you to agree with me — I'm telling you what the record says. We can both be real and only one of us has to be right about the color.\"", species:"grey", next:"grey_finale_save"},
+      {label:"Say nothing about the door. Instead: \"What do you remember about Mara? Tell me — quickly — before anything else.\"", species:"grey", next:"grey_finale_redirect"}
+    ]
+  };
+
+  SCENES.grey_finale_save = {
+    stardate: "ITERATION 42 — TERMINAL ENTRY",
+    onEnter: () => { state.trust.grey += 2; },
+    lines: [
+      {text:"7-Delta-Beta's breathing, which had begun to climb toward the ragged edge that killed Iteration 17, catches — not on the information itself, but on the shape of the sentence. Only one of us has to be right about the color. Not: only one of us is real.", cls:""},
+      {text:"\"...okay,\" it says, and the word comes out unsteady but the cardiac alarm the Grey had quietly been monitoring does not sound. \"Okay. Blue. I — I had it as green, I think, but— okay. Blue.\"", cls:"speaker"},
+      {text:"The dividing cell in the honeycomb wall completes its separation with a soft, organic sound, and two distinct shapes settle into two distinct hollows — both viable, both stable, both, for the first time in two centuries, still breathing four minutes after the moment that should have killed at least one of them.", cls:""},
+      {text:"The Wing-Clade's many eyes swing toward the Grey beside you, and the chorus-voice carries something that might, in a being with mandibles, be the equivalent of raised eyebrows. \"THIS WAS NOT IN THE BIFURCATION PROTOCOL.\"", cls:"speaker"},
+      {text:"\"No,\" the Grey agrees, in its flat, accurate voice. \"It was in ours. Iteration 42 will be the first complete record of this facility's history. We will be revising several documents. This will take some time. We do not mind. We have time.\"", cls:"speaker"},
+      {text:"[ TWO VERSIONS OF YOU STAND IN THE AMBER LIGHT, BOTH REAL, BOTH UNCERTAIN ABOUT A DOOR, BOTH ALIVE. SOMEWHERE TWO LEVELS DOWN, MARA'S FILE REMAINS UNTOUCHED, AND NOW THERE ARE TWO OF YOU TO GO FIND IT. ]", cls:"flavor"},
+      {text:"— TRANSMISSION INTERRUPTED —", cls:"system"},
+      {text:"This branch of the record ends here. The Custodians keep records, not promises — but for the first time in two hundred and three years, the record itself changed.", cls:"system"}
+    ],
+    choices: [],
+    ending: true
+  };
+
+  SCENES.grey_finale_redirect = {
+    stardate: "ITERATION 42 — TERMINAL ENTRY",
+    onEnter: () => { state.trust.grey += 1; state.memoryFragments += 1; },
+    lines: [
+      {text:"7-Delta-Beta blinks, thrown off the track of its own rising panic by the sudden, unexpected question. \"Mara,\" it repeats, and its hand drops from its chest. \"She— she had a stuffed fox. One ear. She called it—\"", cls:"speaker"},
+      {text:"\"Captain,\" you say, at the exact same moment 7-Delta-Beta does. Both of you stop. The synchrony — instead of triggering the spiral of Iteration 17, where sameness meant erasure — does something else this time. You both, simultaneously, almost laugh. The sound is identical, coming from two mouths.", cls:""},
+      {text:"\"We both remember Captain,\" 7-Delta-Beta says, wonderingly. \"We both — okay. Okay, that's. That's good, actually. That's really good.\"", cls:"speaker"},
+      {text:"The dividing honeycomb cell completes its separation behind you both, quiet and final, two hollows settling into stillness. The cardiac alarm the Grey had been monitoring never sounds.", cls:""},
+      {text:"The Grey beside you tilts its head, the dark eyes unreadable as ever, but its voice — for just a moment — drops the flatness. \"You did not use the information we gave you. You asked a different question entirely, and it worked regardless. We will need to revise our theory about Iteration 17. We find that we do not mind.\"", cls:"speaker"},
+      {text:"[ TWO VERSIONS OF YOU STAND IN THE AMBER LIGHT, BOTH REMEMBERING THE SAME FOX WITH THE SAME CHEWED EAR, BOTH ALIVE. THE DOOR'S COLOR REMAINS, FOR NOW, UNRESOLVED — AND, FOR THE FIRST TIME, THAT SEEMS ALRIGHT. ]", cls:"flavor"},
+      {text:"— TRANSMISSION INTERRUPTED —", cls:"system"},
+      {text:"This branch of the record ends here. Sometimes the Custodians' theories are wrong in the most useful possible way.", cls:"system"}
+    ],
+    choices: [],
+    ending: true
+  };
+
+  // ---------------- NORDIC PATH ----------------
+  SCENES.nordic_intro = {
+    stardate: "WARD 7-DELTA — THE CHOIR LOFT",
+    onEnter: () => { state.species = 'nordic'; state.trust.nordic += 1; state.chapter = 1; updateVitals(); },
+    lines: [
+      {text:"Light — too much of it, all at once, golden and total, and for a moment you think the procedure has failed and you are simply dying, gently, into brightness.", cls:""},
+      {text:"Then your eyes adjust, and the brightness resolves into a figure. Tall — seven feet at least — pale-skinned, white-blond hair falling past broad shoulders, features so symmetrical they read as almost generic, almost like a memory of a face rather than a face. Its eyes are a blue so pale it is nearly silver, and they are, unmistakably, full of something like sorrow.", cls:""},
+      {text:"\"You chose us,\" it says, and the voice is warm, resonant, almost musical — and underneath the warmth, you hear something else. A tremor. \"Of course you did. You always do, in the iterations where you have a real choice. We do not know if that comforts us or makes things worse.\"", cls:"speaker"},
+      {text:"It extends a hand — human-shaped, long-fingered, oddly comforting — and helps you to your feet with a gentleness none of the other Clades, you suspect, would have bothered with.", cls:""},
+      {text:"\"We are called many things by your species. Choir, because we sing to the dying, sometimes, when there is nothing else to offer. We will not pretend that is a comfort to you right now. It is mostly a comfort to us.\"", cls:"speaker"},
+      {text:"Behind the Nordic figure, the chamber opens into something that looks, impossibly, like a garden — soft light, rows of pale flowering plants under a domed ceiling painted (or projected) with a slow-moving simulation of Earth's sky, clouds drifting in real time.", cls:""},
+      {text:"[ IT IS THE FIRST ROOM IN THIS FACILITY THAT FEELS BUILT FOR COMFORT RATHER THAN CONTAINMENT. THIS, SOMEHOW, MAKES IT THE MOST UNSETTLING ROOM YET. ]", cls:"flavor"},
+      {text:"\"There is a child here,\" the Nordic says, very gently, watching your face as it says it. \"Her name is Mara. We have been... caring for her, in the only ways available to us, for three years of this facility's time. We need to tell you what 'caring for her' has actually meant. We need to tell you before you see her, because seeing her first would make the telling impossible, and you deserve the telling.\"", cls:"speaker"}
+    ],
+    choices: [
+      {label:"\"Tell me. All of it. Don't soften it for my sake.\"", species:"nordic", next:"nordic_truth"},
+      {label:"\"Take me to her first. I need to see her before anything else.\"", species:"nordic", next:"nordic_see_first"}
+    ]
+  };
+
+  SCENES.nordic_truth = {
+    stardate: "THE CHOIR LOFT — GARDEN CHAMBER",
+    onEnter: () => { state.trust.nordic += 2; state.memoryFragments += 1; },
+    lines: [
+      {text:"The Nordic's pale eyes close briefly — not in hesitation, you realize, but in something closer to gathering courage, an oddly human gesture from something so deliberately inhuman in scale.", cls:""},
+      {text:"\"Mara's template was extracted eleven years ago, at the time of your own acquisition — a standard 'paired specimen' protocol the Wing-Clade and Reptile-Clade use for subjects with strong familial bonds. The reasoning, as they explain it, is efficiency: a parent pattern and a child pattern, run in parallel, each providing emotional context for the other's responses.\"", cls:"speaker"},
+      {text:"\"For the first cycle, Mara's template was run the way yours has been — decanted, questioned, allowed to fail, re-decanted. It failed eleven times in eleven months. Each failure was faster than the last. By the eleventh, failure occurred within ninety seconds of decant — the pattern recognizing the chamber, recognizing what came next, and simply... refusing to stabilize. Something your species might call giving up, if a four-year-old pattern can be said to give up.\"", cls:"speaker"},
+      {text:"The Nordic's voice does not break, exactly, but it thins — like a note held too long.", cls:""},
+      {text:"\"We petitioned for custody after the eleventh failure. It was granted — we suspect because the other Clades had, by then, classified the Mara-template as a poor return on resources, and were glad to have us absorb the 'loss.' For three years, we have not decanted her. We have not questioned her. We have kept her template in a low-stimulus dormant state, in this garden, with the sky simulation running, and we have — \"", cls:"speaker"},
+      {text:"It stops entirely.", cls:""},
+      {text:"\"We have sung to her. That is all. For three years, that is the entirety of what we have done, because it is the only thing we found that did not cause the pattern distress. We do not know if she is aware. We do not know if three years of a sky simulation and singing constitutes care, or simply a more elaborate form of the same containment. We have never known. We have done it anyway, because the alternative — returning her to the standard protocol — was the only other option, and we could not.\"", cls:"speaker"},
+      {text:"[ THROUGH THE GARDEN, FAINTLY, YOU CAN HEAR IT NOW — A SOUND LIKE SINGING, MULTIPLE VOICES, VERY SOFT, COMING FROM SOMEWHERE AMONG THE PALE FLOWERS. ]", cls:"flavor"}
+    ],
+    choices: [
+      {label:"Continue.", species:"nordic", next:"nordic_garden"}
+    ]
+  };
+
+  SCENES.nordic_see_first = {
+    stardate: "THE CHOIR LOFT — GARDEN CHAMBER",
+    onEnter: () => { state.trust.nordic += 1; },
+    lines: [
+      {text:"The Nordic hesitates — and you realize, watching its face, that hesitation is not a thing this being does easily. Its features are built for serenity; uncertainty sits on them like a crack in porcelain.", cls:""},
+      {text:"\"...As you wish. We will not refuse you this. But please — when you see her, do not call out. Do not run to her. Move slowly, and let us explain as we go, because if you do not understand what you are seeing, you may misread it, and a misread, here, could undo three years of very careful work.\"", cls:"speaker"},
+      {text:"It leads you into the garden. Among the pale flowering plants — which, you now see, are not quite Earth flora; the petals move slightly, slowly, like they are breathing — there is a low platform, draped in soft fabric, lit from below in warm gold.", cls:""},
+      {text:"On the platform, a small shape. Sleeping, or something like it. A child, seven years old, dark-haired, one hand curled loosely around a small stuffed fox with one chewed ear.", cls:""},
+      {text:"Around the platform, three more Nordic figures stand in a loose circle, and they are singing — quietly, wordlessly, a melody with no clear beginning or end, the kind of song that seems to have always been playing and will always continue, just below the threshold of hearing.", cls:""},
+      {text:"[ YOUR LEGS NEARLY GIVE OUT. THE NORDIC BESIDE YOU PUTS A HAND, VERY GENTLY, ON YOUR SHOULDER — NOT RESTRAINING. JUST THERE. ]", cls:"flavor"},
+      {text:"\"This is Mara,\" your guide says, very quietly. \"She has been like this — exactly like this — for three years. We need to explain what that means before you decide anything. May we?\"", cls:"speaker"}
+    ],
+    choices: [
+      {label:"Continue.", species:"nordic", next:"nordic_garden"}
+    ]
+  };
+
+  SCENES.nordic_garden = {
+    stardate: "THE CHOIR LOFT — THE QUESTION",
+    onEnter: () => { state.chapter = 2; updateVitals(); },
+    lines: [
+      {text:"\"Mara's pattern, after the eleventh failure, stabilized — but only in this dormant state. The moment external stimulus rises past a very narrow threshold, even something as gentle as a familiar voice, the pattern begins to drift back toward the failure mode that destroyed eleven prior decants. We have spent three years learning exactly where that threshold is. The singing sits just below it. So does the sky simulation. So, we believe, does your presence, if you remain calm and do not speak directly to her.\"", cls:"speaker"},
+      {text:"The Nordic kneels beside the platform — an oddly graceful motion for something so tall — and gestures to a small console, half-hidden among the flowers, its surface dark.", cls:""},
+      {text:"\"This console controls the dormancy threshold. We have never used it to raise the threshold — only to monitor it, and to keep it from being raised by accident. The Reptile-Clade has, twice, requested access to 'test Mara's current resilience.' We have refused both times. We do not know how many more refusals we have in us. The facility's hierarchy does not formally recognize our custody as permanent.\"", cls:"speaker"},
+      {text:"\"There is one more thing.\" The Nordic's silver eyes find yours, and hold them. \"The console can also be used the other way — to very, very slowly raise the threshold, over weeks or months, in careful increments, the way one might gradually reintroduce light to eyes that have been in the dark a long time. We have modeled this. It could, theoretically, allow Mara to wake — fully, permanently — without triggering the failure mode. It could also fail at any increment, and undo three years of stability in a single afternoon. We have never attempted it, because we have never had anyone to attempt it with. It requires two operators: one to manage the threshold, one to simply be present, and recognizable, as the increments rise. A familiar voice. A parent's voice, ideally.\"", cls:"speaker"},
+      {text:"[ THE SINGING CONTINUES, SOFT AND ENDLESS. THE FOX'S CHEWED EAR TWITCHES VERY SLIGHTLY — A BREEZE FROM THE GARDEN'S CLIMATE SYSTEM, OR SOMETHING ELSE. YOU CANNOT TELL. ]", cls:"flavor"},
+      {text:"\"We are not asking you to decide this now. We are telling you it exists, because the other Clades will not, and because — whatever else happens to you in this facility — we believed you should know that this door, unlike most in this place, is one only you can open.\"", cls:"speaker"}
+    ],
+    choices: [
+      {label:"\"Begin the process. Slowly. I'll stay — for as long as it takes.\" — Choose the gradual waking.", species:"nordic", next:"nordic_wake"},
+      {label:"\"Not yet. Keep her safe as she is, for now — until I understand more about this facility and what happens after.\" — Choose to wait.", species:"nordic", next:"nordic_wait"}
+    ]
+  };
+
+  SCENES.nordic_wake = {
+    stardate: "ITERATION 42 — TERMINAL ENTRY",
+    onEnter: () => { state.trust.nordic += 2; state.chapter = 3; updateVitals(); },
+    lines: [
+      {text:"The Nordic's hands move over the console with extraordinary care — the same care, you imagine, that has gone into three years of unbroken song. The first increment is so small you do not notice any change at all, except that the singing, fractionally, grows louder.", cls:""},
+      {text:"\"Stay where she can hear you,\" the Nordic murmurs. \"You do not need to speak. Presence is the variable. Voice, if you have it in you, is the accelerant — but only if it is calm.\"", cls:""},
+      {text:"You sit on the edge of the platform, close enough that your shadow falls across the small sleeping shape, and after a long moment — not knowing if it is the right thing, not knowing if anything is the right thing in this place — you begin, quietly, to hum the same wordless melody the Choir has been singing. You don't know how you know it. Perhaps you've been hearing it, underneath everything, since you woke on the slab.", cls:""},
+      {text:"The second increment rises. The third. Each one is accompanied by some small, living motion from the small shape on the platform — fingers tightening slightly around the fox, a breath that goes a fraction deeper, eyelids that flutter without opening.", cls:""},
+      {text:"By the seventh increment — the Nordic's hands trembling now, very slightly, with the effort of a process that has no precedent and no safety margin — Mara's eyes open.", cls:""},
+      {text:"They find your face. They do not, at first, focus — three years of dormancy do not lift in an instant. But then they do, slowly, the way a held breath finally releases, and the small voice that comes out is rough with disuse but unmistakably, achingly familiar.", cls:""},
+      {text:"\"...You came back,\" Mara says. \"Captain said you would. I told him you would. He didn't believe me, but I did.\"", cls:"speaker"},
+      {text:"The Choir's song does not stop — it simply changes, very gradually, into something with the shape of relief.", cls:""},
+      {text:"[ ELSEWHERE IN THE FACILITY, ALARMS THAT HAVE NOT SOUNDED IN THREE YEARS BEGIN, FAINTLY, TO REGISTER A CHANGE. THE OTHER CLADES WILL NOTICE SOON. FOR NOW, IN THIS ONE ROOM, THERE IS ONLY THE SONG, AND THE LIGHT, AND A SMALL HAND FINDING YOURS. ]", cls:"flavor"},
+      {text:"— TRANSMISSION INTERRUPTED —", cls:"system"},
+      {text:"This branch of the record ends here. The Choir sang for three years without knowing if anyone was listening. Someone was.", cls:"system"}
+    ],
+    choices: [],
+    ending: true
+  };
+
+  SCENES.nordic_wait = {
+    stardate: "ITERATION 42 — TERMINAL ENTRY",
+    onEnter: () => { state.trust.nordic += 1; state.memoryFragments += 1; state.chapter = 3; updateVitals(); },
+    lines: [
+      {text:"The Nordic nods slowly, and something in its posture — relief, perhaps, or simply the release of a decision it did not have to make alone — eases very slightly.", cls:""},
+      {text:"\"That is, we think, the wiser answer. The waking, if it happens, should happen because it is right for Mara — not because it is the only comfort available to you in a moment of fear. We will keep the threshold exactly where it is. We have done it for three years. We can do it longer.\"", cls:"speaker"},
+      {text:"It guides you gently away from the platform, though you find yourself looking back more than once — at the small curled shape, the chewed-ear fox, the slow endless song.", cls:""},
+      {text:"\"What you should understand, now, is the shape of this facility,\" the Nordic continues, as you walk. \"The Wing-Clade believes in distribution — many copies, light loads. The Reptile-Clade believes in truth as a tool, sharpened until it cuts. The Custodial Greys believe in accuracy above all else, including comfort. And we — we believe, perhaps foolishly, in the value of simply not making things worse while better options are found.\"", cls:"speaker"},
+      {text:"\"None of these philosophies, alone, is sufficient. You have seen — or will see, in other iterations, other choices — that each Clade's approach carries its own form of harm, and its own form of grace. We do not know which of us is right. We suspect the honest answer is that none of us are, entirely, and that the facility's two-hundred-year survival of Subject 7-Delta has depended, every time, on which of us a given iteration happened to trust first.\"", cls:"speaker"},
+      {text:"\"You trusted us. We will not waste that. Mara will be here — exactly as she is, exactly as safe — whenever you, or whatever you become, are ready. That is the only promise we are equipped to make, and we intend to keep it.\"", cls:"speaker"},
+      {text:"[ THE SONG FOLLOWS YOU OUT OF THE GARDEN, FAINTER NOW BUT NOT GONE — A THREAD LEFT DELIBERATELY UNCUT. ]", cls:"flavor"},
+      {text:"— TRANSMISSION INTERRUPTED —", cls:"system"},
+      {text:"This branch of the record ends here. Some doors are left open on purpose. The Choir understands, better than most in this facility, that open is not the same as unguarded.", cls:"system"}
+    ],
+    choices: [],
+    ending: true
+  };
+
+  // ---------------------------------------------------------
+  // ENGINE
+  // ---------------------------------------------------------
+
+  async function goTo(sceneKey){
+    currentNode = sceneKey;
+    const scene = SCENES[sceneKey];
+    if(!scene) return;
+
+    choicesEl.classList.remove('visible');
+    choicesEl.innerHTML = '';
+    clearOutput();
+
+    if(scene.stardate) setStardate(scene.stardate);
+    if(scene.onEnter) scene.onEnter();
+
+    await renderLines(scene.lines);
+
+    if(scene.ending){
+      restartRow.style.display = 'block';
+      return;
+    }
+
+    // build choices
+    scene.choices.forEach(choice => {
+      const btn = document.createElement('button');
+      btn.className = 'choice-btn';
+      btn.textContent = choice.label;
+      if(choice.species) btn.setAttribute('data-species', choice.species);
+      btn.addEventListener('click', () => {
+        goTo(choice.next);
+      });
+      choicesEl.appendChild(btn);
+    });
+    requestAnimationFrame(() => {
+      choicesEl.classList.add('visible');
+    });
+  }
+
+  // Click anywhere on output to fast-forward typing
+  outputEl.addEventListener('click', instantFinish);
+  document.querySelector('main').addEventListener('click', (e) => {
+    if(e.target.closest('.choice-btn') || e.target.closest('.restart-btn')) return;
+    instantFinish();
+  });
+
+  restartBtn.addEventListener('click', () => {
+    state = {
+      species: null,
+      trust: { insectoid:0, reptilian:0, grey:0, nordic:0 },
+      clonesReleased: 0,
+      memoryFragments: 0,
+      sedated: true,
+      chapter: 0
+    };
+    restartRow.style.display = 'none';
+    updateVitals();
+    goTo('start');
+  });
+
+  updateVitals();
+  goTo('start');
+
+})();
+</script>
+</body>
+</html>
